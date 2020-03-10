@@ -208,74 +208,94 @@
 				return float4(Rgb, 1);
 			}
 
-			fixed4 frag (v2f i) : SV_Target
+
+			float3 GetColour(float2 uv)
 			{
-				float4 Luma4 = tex2D(LumaTexture, i.uv);
+				float4 Luma4 = tex2D(LumaTexture, uv);
 
-				float2 DepthAndValid = float2(0, 0);
-				if (ChromaUFormat == Depth16mm)
-				{
-					float Depthf = tex2D(ChromaUTexture, i.uv);
-					DepthAndValid = float2(Depthf, 1);
-				}//gr: else, because sometimes c# leaves old values instead of setting to invalid!
-				else if (ChromaVFormat == Depth16mm)
-				{
-					float Depthf = tex2D(ChromaVTexture, i.uv);
-					DepthAndValid = float2(Depthf, 1);
-				}
-
-				//	look out for when we have luma+chroma+chroma?
-				if (LumaFormat == Greyscale || LumaFormat == Luma_Ntsc)
-					return MergeColourAndDepth(Luma4.xxx, DepthAndValid);
 				if (LumaFormat == RGB)
-					return MergeColourAndDepth(Luma4, DepthAndValid);
+					return Luma4;
+				
 				if (LumaFormat == RGBA)
-					return MergeColourAndDepth(Luma4, DepthAndValid);
-				if (LumaFormat == BGRA  || LumaFormat == BGR)
-					return MergeColourAndDepth(Luma4.yxw, DepthAndValid);//	ARGB data, but is BGRA. z is alpha it seems
+					return Luma4;
 
-				//	gr: this is expected to be 16bit texture format, so 1 component
-				if (LumaFormat == Depth16mm)
-					return float4(GetDepthColour(Luma4.x).xyz, 1);
-
+				//	ARGB data, but is BGRA. z is alpha it seems
+				if (LumaFormat == BGRA || LumaFormat == BGR)
+					return Luma4.yxw;
+				
 				// sample the texture
 				float Luma = Luma4.x;
 				float2 ChromaUV = float2(0, 0);
-				if ( LumaFormat == YYuv_8888_Full || LumaFormat == YYuv_8888_Ntsc )
+				if (LumaFormat == YYuv_8888_Full || LumaFormat == YYuv_8888_Ntsc)
 				{
-					GetLumaChromaUv_8888(i.uv, Luma, ChromaUV);
+					GetLumaChromaUv_8888(uv, Luma, ChromaUV);
 				}
-				else if ( ChromaUFormat == Debug )
+				else if (ChromaUFormat == Debug)
 				{
-					ChromaUV = GetChromaUv_Debug(i.uv);
+					ChromaUV = GetChromaUv_Debug(uv);
 				}
-				else if ( ChromaUFormat == ChromaUV_88 )
+				else if (ChromaUFormat == ChromaUV_88)
 				{
-					ChromaUV = GetChromaUv_88(i.uv);
+					ChromaUV = GetChromaUv_88(uv);
 				}
-				else if ( ChromaUFormat == Chroma_U && ChromaVFormat == Chroma_V  )
+				else if (ChromaUFormat == Chroma_U && ChromaVFormat == Chroma_V)
 				{
-					ChromaUV = GetChromaUv_8_8(i.uv);
+					ChromaUV = GetChromaUv_8_8(uv);
 				}
-				
+
 
 				//	0..1 to -0.5..0.5
 				ChromaUV -= 0.5;
-				
+
 				//	override for quick debug
-				if ( !ENABLE_CHROMA )
+				if (!ENABLE_CHROMA)
 				{
 					ChromaUV = float2(0, 0);
 				}
 
 				//	set luma range
-				Luma = lerp(LumaMin/255, LumaMax/255, Luma);
+				Luma = lerp(LumaMin / 255, LumaMax / 255, Luma);
 				float3 Rgb;
 				Rgb.x = Luma + (ChromaVRed * ChromaUV.y);
 				Rgb.y = Luma + (ChromaUGreen * ChromaUV.x) + (ChromaVGreen * ChromaUV.y);
 				Rgb.z = Luma + (ChromaUBlue * ChromaUV.x);
 
-				return float4( Rgb.xyz, 1);
+				return Rgb;
+			}
+
+			//	y = valid
+			float2 GetDepth(float2 uv)
+			{
+				if (ChromaUFormat == Depth16mm)
+				{
+					float Depthf = tex2D(ChromaUTexture, uv);
+					return float2(Depthf, 1);
+				}
+				
+				if (ChromaVFormat == Depth16mm)
+				{
+					float Depthf = tex2D(ChromaVTexture, uv);
+					return float2(Depthf, 1);
+				}
+
+				//	gr: this is expected to be 16bit texture format, so 1 component
+				if (LumaFormat == Depth16mm)
+				{
+					float Depthf = tex2D(LumaTexture, uv);
+					return float2(Depthf, 1);
+				}
+				
+				return float2(0, 0);
+			}
+
+
+
+			fixed4 frag (v2f i) : SV_Target
+			{
+				float2 DepthAndValid = GetDepth(i.uv);
+				float3 Colour = GetColour(i.uv);
+
+				return MergeColourAndDepth(Colour, DepthAndValid);
 			}
 			ENDCG
 		}
