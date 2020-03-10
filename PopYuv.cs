@@ -22,6 +22,10 @@ namespace PopX
 		ChromaUV_88		=11,
 		ChromaVU_88		=12,
 		Luma_Ntsc		=13,
+
+
+		ChromaU_8 = Chroma_U,
+		ChromaV_8 = Chroma_V,
 	}
 
 	public class PopYuv
