@@ -37,7 +37,7 @@ namespace PopX
 			for (var i = 0; i < FormatUniforms.Length; i++)
 			{
 				var Uniform = FormatUniforms[i];
-				var Format = (Formats?.Count > i) ? Formats[i] : PixelFormat.Invalid;
+				var Format = (Formats != null && Formats.Count > i) ? Formats[i] : PixelFormat.Invalid;
 				material.SetInt(Uniform, (int)Format);
 			}
 		}
